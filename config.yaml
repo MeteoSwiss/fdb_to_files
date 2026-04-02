@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=./config_schema.json
+# FDB to GRIB extraction configuration
+
+model: icon-rea-l-ch1
+type: cf
+
+date_range:
+  start: "20250101"
+  end: "20250103"
+
+times:
+  - "0000"
+#  - "1200"
+
+# Steps can be a list or a range:
+# steps: [0, 1, 2, 3]
+# Default steps (hourly, for ml variables)
+steps:
+  start: 0
+  end: 24
+  by: 1
+
+blocks:
+  - levtype: sfc
+    params:
+      - 500011  # T_2M
+      - 500017  # TD_2M
+    # sfc instant variables use minute-based steps
+    steps:
+      start: 0
+      end: 1440
+      by: 10
+      unit: m
+
+  - levtype: ml
+    params:
+      - 500014  # T
+    levels:
+      start: 1
+      end: 80
+
+# All fields sharing the same values for these keys go into the same GRIB file.
+group_by:
+  - date
+  - time
+  - step
+
+output_dir: ./output
+
+# Template for output filenames — uses group_by keys as variables.
+# If omitted, defaults to "{key1}_{key2}_....grib"
+output_template: "{date}{time}/i1emec00{step}_{time}_{step}.grib"

@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "fdb_to_grib configuration",
+  "description": "Configuration for extracting GRIB files from FDB with fdb_to_grib.py.",
+  "type": "object",
+  "required": ["model", "date_range", "times", "steps", "blocks", "group_by"],
+  "additionalProperties": false,
+  "properties": {
+    "model": {
+      "type": "string",
+      "enum": ["ICON-CH1-EPS", "ICON-CH2-EPS", "icon-rea-l-ch1"],
+      "description": "Model name. class, stream and expver are derived automatically."
+    },
+    "type": {
+      "type": "string",
+      "default": "cf",
+      "description": "MARS type. Typical values: cf (control forecast), pf (perturbed forecast), an (analysis)."
+    },
+    "date_range": {
+      "type": "object",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "description": "Inclusive date range for the request.",
+      "properties": {
+        "start": {
+          "type": "string",
+          "pattern": "^[0-9]{8}$",
+          "description": "Start date in YYYYMMDD format, e.g. '20250101'."
+        },
+        "end": {
+          "type": "string",
+          "pattern": "^[0-9]{8}$",
+          "description": "End date in YYYYMMDD format, e.g. '20250103' (inclusive)."
+        }
+      }
+    },
+    "times": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9]{4}$",
+        "description": "Run time in HHMM format, e.g. '0000', '1200'."
+      },
+      "description": "List of run times in HHMM format."
+    },
+    "steps": {
+      "$ref": "#/$defs/stepSpec",
+      "description": "Global step specification. Can be a list or a range. Applies to all blocks unless overridden per block."
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/block" },
+      "description": "One block per levtype. Each block specifies which params (and optionally levels) to retrieve."
+    },
+    "group_by": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "description": "Any GRIB metadata key, e.g. date, time, step, levtype, param, level."
+      },
+      "description": "Fields sharing the same values for these keys are written to the same output file.",
+      "examples": [["date", "time", "step"]]
+    },
+    "output_dir": {
+      "type": "string",
+      "default": "./output",
+      "description": "Root directory for output files. Created automatically if it does not exist."
+    },
+    "output_template": {
+      "type": "string",
+      "description": "Filename template relative to output_dir. Uses group_by keys as {variable} placeholders. Slashes create subdirectories. Defaults to '{key1}_{key2}_....grib'.",
+      "examples": ["{date}_{time}_{step}.grib", "{date}{time}/forecast_{step}.grib"]
+    }
+  },
+  "$defs": {
+    "range": {
+      "type": "object",
+      "required": ["start", "end"],
+      "additionalProperties": false,
+      "description": "Arithmetic sequence expressed as a range.",
+      "properties": {
+        "start": { "type": "integer", "description": "First value." },
+        "end":   { "type": "integer", "description": "Last value (inclusive)." },
+        "by":    { "type": "integer", "default": 1, "description": "Step size (default: 1)." },
+        "unit":  {
+          "type": "string",
+          "enum": ["m"],
+          "description": "Time unit suffix. Use 'm' for minute-based steps (e.g. 0m/to/1440m/by/10m). Omit for hours."
+        }
+      }
+    },
+    "stepSpec": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "integer" },
+          "description": "Explicit list of step values."
+        },
+        { "$ref": "#/$defs/range" }
+      ]
+    },
+    "levelSpec": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "type": "number" },
+          "description": "Explicit list of level values (floats allowed, e.g. for depth levels)."
+        },
+        { "$ref": "#/$defs/range" }
+      ]
+    },
+    "block": {
+      "type": "object",
+      "required": ["levtype", "params"],
+      "additionalProperties": false,
+      "properties": {
+        "levtype": {
+          "type": "string",
+          "enum": ["sfc", "ml", "pl", "dp", "hl"],
+          "description": "Level type: sfc (surface), ml (model levels), pl (pressure levels), dp (depth), hl (height above sea)."
+        },
+        "params": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer" },
+          "description": "List of paramIds to retrieve."
+        },
+        "levels": {
+          "$ref": "#/$defs/levelSpec",
+          "description": "Levels to retrieve (levelist). Required for ml, pl, dp, hl. Must be omitted for sfc."
+        },
+        "steps": {
+          "$ref": "#/$defs/stepSpec",
+          "description": "Steps for this block only. Overrides the global steps. Useful when different levtypes use different step units (e.g. hourly vs minute-based)."
+        }
+      }
+    }
+  }
+}
